@@ -28,11 +28,13 @@ class Handler(Message):
         return message
 
     def handle_message(self, message):
+        global config
         h = {'IP': '127.0.0.1'}
+        if 'rspamd_settings-id' in config['RELAY']:
+            h['Settings-ID'] = config['RELAY']['rspamd_settings-id']
         r = requests.post('http://localhost:11333/checkv2', data=message.as_bytes(),
                 headers = h)
         j = r.json()
-        print(j)
         message['DKIM-Signature'] = j['dkim-signature'].replace('\r', '').replace('\n', '')
         with smtplib.SMTP('localhost', 2525) as s:
             s.send_message(message)
@@ -45,9 +47,10 @@ if len(sys.argv) < 2:
     syslog.syslog(syslog.LOG_ERR, "No configuration file specified")
     sys.exit(2)
 
+global config
 config = configparser.ConfigParser()
 try:
-    config = configparser.ConfigParser().read_file(open(sys.argv[1]))
+    config.read_file(open(sys.argv[1]))
 except configparser.Error as err:
     syslog.syslog(syslog.LOG_ERR, "Unable to parse configuration: {}".format(err))
     sys.exit(2)
