@@ -1,6 +1,8 @@
 #!/usr/bin/env python
-from aiosmtpd.handlers import Message
+from aiosmtpd.handlers import AsyncMessage
 from aiosmtpd.smtp import SMTP
+import aiosmtplib
+import aiohttp
 import asyncio
 import configparser
 import email
@@ -8,14 +10,16 @@ import email.policy
 import functools
 import logging
 import logging.handlers
-import requests
 import signal
-import smtplib
 import socket
 import sys
 
 
-class Handler(Message):
+class Handler(AsyncMessage):
+    def __init__(self, clientsession, **kwargs):
+        super().__init__(**kwargs)
+        self._session = clientsession
+
     def prepare_message(self, session, envelope):
         # If the server was created with decode_data True, then data will be a
         # str, otherwise it will be bytes.
@@ -28,10 +32,10 @@ class Handler(Message):
             message = email.message_from_string(data, policy=email.policy.SMTP)
         return message
 
-    def handle_message(self, message):
-        r = requests.post(config['RELAY'].get('rspamd', 'http://localhost:11333/checkv2'),
-                          data=message.as_bytes(), headers=dict(config.items('HEADERS')))
-        j = r.json()
+    async def handle_message(self, message):
+        r = await self._session.post(config['RELAY'].get('rspamd', 'http://localhost:11333/checkv2'),
+                                     data=message.as_bytes(), headers=dict(config.items('HEADERS')))
+        j = await r.json()
 
         if 'dkim-signature' not in j:
             logging.warning('rspamd did not return a signature for message {}'.format(
@@ -39,8 +43,9 @@ class Handler(Message):
         else:
             message['DKIM-Signature'] = j['dkim-signature'].replace(
                 '\r', '').replace('\n', '')
-        with smtplib.SMTP(config['RELAY'].get('forward', 'localhost:2525')) as s:
-            s.send_message(message)
+        async with aiosmtplib.SMTP(hostname=config['RELAY'].get('forward', 'localhost'),
+                                   port=config['RELAY'].get('fport', 2525)) as s:
+            await s.send_message(message)
 
     async def handle_exception(self, err):
         logging.error("Unable to relay message: {}".format(err))
@@ -52,8 +57,11 @@ def stop(server):
     server.close()
 
 
-async def start(factory, host, port):
+async def start(host, port):
     loop = asyncio.get_running_loop()
+    session = aiohttp.ClientSession()
+    handler = Handler(session)
+    factory = functools.partial(SMTP, handler, enable_SMTPUTF8=True)
     server = await loop.create_server(factory, host=host, port=port)
     for sig in {signal.SIGTERM, signal.SIGINT}:
         loop.add_signal_handler(sig, functools.partial(stop, server))
@@ -61,6 +69,8 @@ async def start(factory, host, port):
         await server.serve_forever()
     except asyncio.CancelledError:
         return
+    finally:
+        await session.close()
 
 global config
 if len(sys.argv) < 2:
@@ -92,6 +102,5 @@ else:
     logging.basicConfig()
 
 logging.info("Starting pyrelay-rspamd")
-factory = functools.partial(SMTP, Handler(), enable_SMTPUTF8=True)
-asyncio.run(start(factory, config['RELAY'].get('listen', 'localhost'),
+asyncio.run(start(config['RELAY'].get('listen', 'localhost'),
                   int(config['RELAY'].get('port', 8383))))

@@ -13,7 +13,8 @@ all you need is a small script to make rspamd to the work?
 ## Requirements
 
 * Python 3.7+ (sorry, I use `asyncio.run()` )
-* requests
+* aiohttp
+* aiosmtplib
 * aiosmtp
 
 ## Configuration

@@ -3,7 +3,8 @@
 #listen=localhost
 #port=8383
 # where to pass mail to once filtered
-#forward=localhost:2525
+#forward=localhost
+#fport=2525
 # optional header to specify which configuration to use
 #where rspamd is listening for requests
 #rspamd=http://localhost:11333/checkv2

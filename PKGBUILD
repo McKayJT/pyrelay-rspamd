@@ -7,8 +7,9 @@ arch=('any')
 url="https://github.com/McKayJT/pyrelay-rspamd"
 license=('custom:UNLICENSE')
 depends=('python'
-	 'python-requests'
+	 'python-aiosmtplib'
 	 'python-aiosmtpd'
+	 'python-aiohttp'
 	 'rspamd')
 backup=('etc/pyrelay-rspamd.conf')
 source=('pyrelay-rspamd'
@@ -16,8 +17,8 @@ source=('pyrelay-rspamd'
         'pyrelay-rspamd.service'
 	'rspamd-settings.local.example'
 	'UNLICENSE')
-md5sums=('0ab44e639a61f53cd887f487bac4c862'
-         '213df980baaf2d2338e114b03c9af250'
+md5sums=('f2a1e2811e3289c67a00df024543f936'
+         '22cf1da9a2cb4d69760e2609d3add277'
          '1b095816cc7c3c2cda754fc8a096e4bc'
          '9af9fcf147d8d43d2a1f2dc3d131fabd'
          '7246f848faa4e9c9fc0ea91122d6e680')
