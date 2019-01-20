@@ -1,20 +1,20 @@
 #!/usr/bin/env python
-import configparser
-import syslog
-import asyncio
-import sys
-import email
-import email.policy
-import requests
-import smtplib
-import logging
-import logging.handlers
-import socket
-import functools
-import signal
-from aiosmtpd.controller import Controller
 from aiosmtpd.handlers import Message
 from aiosmtpd.smtp import SMTP
+import asyncio
+import configparser
+import email
+import email.policy
+import functools
+import logging
+import logging.handlers
+import requests
+import signal
+import smtplib
+import socket
+import sys
+import syslog
+
 
 class Handler(Message):
     def prepare_message(self, session, envelope):
@@ -25,19 +25,21 @@ class Handler(Message):
             message = email.message_from_bytes(data, policy=email.policy.SMTP)
         else:
             assert isinstance(data, str), (
-              'Expected str or bytes, got {}'.format(type(data)))
+                'Expected str or bytes, got {}'.format(type(data)))
             message = email.message_from_string(data, policy=email.policy.SMTP)
         return message
 
     def handle_message(self, message):
         r = requests.post(config['RELAY'].get('rspamd', 'http://localhost:11333/checkv2'),
-                data=message.as_bytes(), headers = dict(config.items('HEADERS')))
+                          data=message.as_bytes(), headers=dict(config.items('HEADERS')))
         j = r.json()
 
         if 'dkim-signature' not in j:
-            logging.warning('rspamd did not return a signature for message {}'.format(message.get('Message-ID', '(Message-ID not found)')))
+            logging.warning('rspamd did not return a signature for message {}'.format(
+                message.get('Message-ID', '(Message-ID not found)')))
         else:
-            message['DKIM-Signature'] = j['dkim-signature'].replace('\r', '').replace('\n', '')
+            message['DKIM-Signature'] = j['dkim-signature'].replace(
+                '\r', '').replace('\n', '')
         with smtplib.SMTP(config['RELAY'].get('forward', 'localhost:2525')) as s:
             s.send_message(message)
 
@@ -45,9 +47,11 @@ class Handler(Message):
         logging.error("Unable to relay message: {}".format(err))
         return "554 Unable to relay mail"
 
+
 def stop(server):
     logging.info("Shutting down pyrelay-rspamd")
     server.close()
+
 
 async def start(factory, host, port):
     loop = asyncio.get_running_loop()
@@ -72,14 +76,16 @@ except configparser.Error as err:
 
 if 'LOG' in config:
     logger = logging.getLogger()
-    handler = {'syslog': logging.handlers.SysLogHandler(facility='mail',address='/dev/log'),
-                'none': logging.NullHandler(),
-                'file': logging.handlers.TimedRotatingFileHandler(config['LOG'].get('file', 'pyrelay-rspamd.log'), when='midnight')
-              }.get(config['LOG'].get('type'), logging.StreamHandler())
+    handler = {'syslog': logging.handlers.SysLogHandler(facility='mail', address='/dev/log'),
+               'none': logging.NullHandler(),
+               'file': logging.handlers.TimedRotatingFileHandler(
+        config['LOG'].get('file', 'pyrelay-rspamd.log'), when='midnight')
+    }.get(config['LOG'].get('type'), logging.StreamHandler())
     if isinstance(handler, logging.handlers.SysLogHandler):
         handler.ident = "pyrelay-rspamd: "
     else:
-        fmt = logging.Formatter(fmt='{asctime}:{levelname}: {message}', style='{')
+        fmt = logging.Formatter(
+            fmt='{asctime}:{levelname}: {message}', style='{')
         handler.setFormatter(fmt)
     logger.addHandler(handler)
     logger.setLevel(config['LOG'].get('level', 'INFO'))
@@ -89,4 +95,4 @@ else:
 logging.info("Starting pyrelay-rspamd")
 factory = functools.partial(SMTP, Handler(), enable_SMTPUTF8=True)
 asyncio.run(start(factory, config['RELAY'].get('listen', 'localhost'),
-    int(config['RELAY'].get('port', 8383))))
+                  int(config['RELAY'].get('port', 8383))))
