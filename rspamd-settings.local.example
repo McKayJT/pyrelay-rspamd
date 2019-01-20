@@ -1,0 +1,9 @@
+# Example settings drop in for rspamd to prevent overprocessing of mail
+
+dkim-sign {
+	id = "dkim-sign";
+	apply {
+		symbols_enabled = ["DKIM_SIGNED"];
+		flags = ["skip_process"];
+	}
+}
