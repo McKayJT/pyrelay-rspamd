@@ -1,0 +1,4 @@
+# ignore packaging build files
+pkg/
+src/
+*.xz

@@ -1,0 +1,8 @@
+[Unit]
+Description=Proxy for DKIM signing
+
+[Service]
+ExecStart=/usr/bin/pyrelay-rspamd /etc/pyrelay-rspamd.conf
+
+[Install]
+WantedBy=multi-user.target
