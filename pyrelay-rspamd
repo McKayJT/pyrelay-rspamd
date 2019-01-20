@@ -88,4 +88,5 @@ else:
 
 logging.info("Starting pyrelay-rspamd")
 factory = functools.partial(SMTP, Handler(), enable_SMTPUTF8=True)
-asyncio.run(start(factory, 'localhost', 8383))
+asyncio.run(start(factory, config['RELAY'].get('listen', 'localhost'),
+    int(config['RELAY'].get('port', 8383))))
