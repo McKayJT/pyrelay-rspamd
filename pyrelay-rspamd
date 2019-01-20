@@ -28,15 +28,15 @@ class Handler(Message):
         return message
 
     def handle_message(self, message):
-        r = requests.post('http://localhost:11333/checkv2', data=message.as_bytes(),
-                headers = dict(config.items('HEADERS')))
+        r = requests.post(config['RELAY'].get('rspamd', 'http://localhost:11333/checkv2'),
+                data=message.as_bytes(), headers = dict(config.items('HEADERS')))
         j = r.json()
 
         if 'dkim-signature' not in j:
             logging.warning('rspamd did not return a signature for message {}'.format(message.get('Message-ID', '(Message-ID not found)')))
         else:
             message['DKIM-Signature'] = j['dkim-signature'].replace('\r', '').replace('\n', '')
-        with smtplib.SMTP('localhost', 2525) as s:
+        with smtplib.SMTP(config['RELAY'].get('forward', 'localhost:2525')) as s:
             s.send_message(message)
 
     async def handle_exception(self, err):
