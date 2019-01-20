@@ -10,6 +10,8 @@ import smtplib
 import logging
 import logging.handlers
 import socket
+import functools
+import signal
 from aiosmtpd.controller import Controller
 from aiosmtpd.handlers import Message
 from aiosmtpd.smtp import SMTP
@@ -43,6 +45,20 @@ class Handler(Message):
         logging.error("Unable to relay message: {}".format(err))
         return "554 Unable to relay mail"
 
+def stop(server):
+    logging.info("Shutting down pyrelay-rspamd")
+    server.close()
+
+async def start(factory, host, port):
+    loop = asyncio.get_running_loop()
+    server = await loop.create_server(factory, host=host, port=port)
+    for sig in {signal.SIGTERM, signal.SIGINT}:
+        loop.add_signal_handler(sig, functools.partial(stop, server))
+    try:
+        await server.serve_forever()
+    except asyncio.CancelledError:
+        return
+
 global config
 if len(sys.argv) < 2:
     print("No configuration file specified", file=os.stderr)
@@ -71,9 +87,5 @@ else:
     logging.basicConfig()
 
 logging.info("Starting pyrelay-rspamd")
-
-controller = Controller(Handler())
-controller.start()
-print("Hit enter to stop")
-sys.stdin.readline()
-controller.stop()
+factory = functools.partial(SMTP, Handler(), enable_SMTPUTF8=True)
+asyncio.run(start(factory, 'localhost', 8383))
