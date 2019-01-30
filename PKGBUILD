@@ -17,11 +17,11 @@ source=('pyrelay-rspamd'
         'pyrelay-rspamd.service'
 	'rspamd-settings.local.example'
 	'UNLICENSE')
-md5sums=('f2a1e2811e3289c67a00df024543f936'
-         '22cf1da9a2cb4d69760e2609d3add277'
-         '1b095816cc7c3c2cda754fc8a096e4bc'
-         '9af9fcf147d8d43d2a1f2dc3d131fabd'
-         '7246f848faa4e9c9fc0ea91122d6e680')
+sha256sums=('ebc8261658826e95ad638c4851397302bdd030832484cde71d995eedb83cdde8'
+            'e0d5f2500988e52c6c633876c3ed1b7cbd2c139165680178447b076dce2f0a58'
+            'bc47989a26988bac240beff3d3071a43b23760309f2f7ab37cef4c4ad2e1d29d'
+            'e5afbdf311ab87e98db05532d03c9ef6abcd286aa85f1c05908e45f99f01ab18'
+            '7e12e5df4bae12cb21581ba157ced20e1986a0508dd10d0e8a4ab9a4cf94e85c')
 
 package() {
 	install -Dm755 pyrelay-rspamd "$pkgdir"/usr/bin/pyrelay-rspamd
