@@ -14,7 +14,6 @@ import signal
 import socket
 import sys
 
-
 class Handler(AsyncMessage):
     def __init__(self, clientsession, **kwargs):
         super().__init__(**kwargs)
@@ -24,25 +23,37 @@ class Handler(AsyncMessage):
         # If the server was created with decode_data True, then data will be a
         # str, otherwise it will be bytes.
         data = envelope.content
+        # do not bother parsing message yet, we will send it as is rspamd
         if isinstance(data, bytes):
-            message = email.message_from_bytes(data, policy=email.policy.SMTP)
+            message = str(data, encoding='utf-8')
         else:
             assert isinstance(data, str), (
                 'Expected str or bytes, got {}'.format(type(data)))
-            message = email.message_from_string(data, policy=email.policy.SMTP)
+            message = data
         return message
 
     async def handle_message(self, message):
         r = await self._session.post(config['RELAY'].get('rspamd', 'http://localhost:11333/checkv2'),
-                                     data=message.as_bytes(), headers=dict(config.items('HEADERS')))
+                                     data=message, headers=dict(config.items('HEADERS')))
         j = await r.json()
 
         if 'dkim-signature' not in j:
+            message = email.message_from_string(message, policy=email.policy.SMTP)
             logging.warning('rspamd did not return a signature for message {}'.format(
                 message.get('Message-ID', '(Message-ID not found)')))
         else:
-            message['DKIM-Signature'] = j['dkim-signature'].replace(
-                '\r', '').replace('\n', '')
+            headers = list()
+            if isinstance(j['dkim-signature'], str):
+                headers.append('DKIM-Signature: ')
+                headers.append(j['dkim-signature'])
+                headers.append('\n')
+            else: 
+                for sig in j['dkim-signature']:
+                    headers.append('DKIM-Signature: ')
+                    headers.append(sig)
+                    headers.append('\n')
+            headers.append(message)
+            message = email.message_from_string("".join(headers), policy=email.policy.SMTP)
         async with aiosmtplib.SMTP(hostname=config['RELAY'].get('forward', 'localhost'),
                                    port=config['RELAY'].get('fport', 2525)) as s:
             await s.send_message(message)
