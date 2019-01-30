@@ -96,11 +96,17 @@ except configparser.Error as err:
 
 if 'LOG' in config:
     logger = logging.getLogger()
-    handler = {'syslog': logging.handlers.SysLogHandler(facility='mail', address='/dev/log'),
-               'none': logging.NullHandler(),
-               'file': logging.handlers.TimedRotatingFileHandler(
-        config['LOG'].get('file', 'pyrelay-rspamd.log'), when='midnight')
-    }.get(config['LOG'].get('type'), logging.StreamHandler())
+    log_type = config['LOG'].get('type')
+    if log_type == 'syslog':
+        handler = logging.handlers.SysLogHandler(facility='mail', address='/dev/log')
+    elif log_type == 'none':
+        handler = logging.NullHandler(),
+    elif log_type == 'file':
+        handler = logging.handlers.TimedRotatingFileHandler(
+            config['LOG'].get('file', 'pyrelay-rspamd.log'), when='midnight')
+    else: 
+        handler = logging.StreamHandler()
+
     if isinstance(handler, logging.handlers.SysLogHandler):
         handler.ident = "pyrelay-rspamd: "
     else:
