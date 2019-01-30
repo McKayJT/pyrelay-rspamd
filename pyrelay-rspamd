@@ -14,6 +14,7 @@ import signal
 import socket
 import sys
 
+
 class Handler(AsyncMessage):
     def __init__(self, clientsession, **kwargs):
         super().__init__(**kwargs)
@@ -38,7 +39,8 @@ class Handler(AsyncMessage):
         j = await r.json()
 
         if 'dkim-signature' not in j:
-            message = email.message_from_string(message, policy=email.policy.SMTP)
+            message = email.message_from_string(
+                message, policy=email.policy.SMTP)
             logging.warning('rspamd did not return a signature for message {}'.format(
                 message.get('Message-ID', '(Message-ID not found)')))
         else:
@@ -47,13 +49,14 @@ class Handler(AsyncMessage):
                 headers.append('DKIM-Signature: ')
                 headers.append(j['dkim-signature'])
                 headers.append('\n')
-            else: 
+            else:
                 for sig in j['dkim-signature']:
                     headers.append('DKIM-Signature: ')
                     headers.append(sig)
                     headers.append('\n')
             headers.append(message)
-            message = email.message_from_string("".join(headers), policy=email.policy.SMTP)
+            message = email.message_from_string(
+                "".join(headers), policy=email.policy.SMTP)
         async with aiosmtplib.SMTP(hostname=config['RELAY'].get('forward', 'localhost'),
                                    port=config['RELAY'].get('fport', 2525)) as s:
             await s.send_message(message)
@@ -98,13 +101,14 @@ if 'LOG' in config:
     logger = logging.getLogger()
     log_type = config['LOG'].get('type')
     if log_type == 'syslog':
-        handler = logging.handlers.SysLogHandler(facility='mail', address='/dev/log')
+        handler = logging.handlers.SysLogHandler(
+            facility='mail', address='/dev/log')
     elif log_type == 'none':
         handler = logging.NullHandler(),
     elif log_type == 'file':
         handler = logging.handlers.TimedRotatingFileHandler(
             config['LOG'].get('file', 'pyrelay-rspamd.log'), when='midnight')
-    else: 
+    else:
         handler = logging.StreamHandler()
 
     if isinstance(handler, logging.handlers.SysLogHandler):
