@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-from aiosmtpd.handlers import AsyncMessage
 from aiosmtpd.smtp import SMTP
 import aiosmtplib
 import aiohttp
@@ -13,56 +12,46 @@ import logging.handlers
 import signal
 import socket
 import sys
+import traceback
 
 
-class Handler(AsyncMessage):
-    def __init__(self, clientsession, **kwargs):
-        super().__init__(**kwargs)
+class Handler:
+    def __init__(self, clientsession):
         self._session = clientsession
 
-    def prepare_message(self, session, envelope):
-        # If the server was created with decode_data True, then data will be a
-        # str, otherwise it will be bytes.
-        data = envelope.content
-        # do not bother parsing message yet, we will send it as is rspamd
-        if isinstance(data, bytes):
-            message = str(data, encoding='utf-8')
-        else:
-            assert isinstance(data, str), (
-                'Expected str or bytes, got {}'.format(type(data)))
-            message = data
-        return message
-
-    async def handle_message(self, message):
+    async def handle_DATA(self, server, session, envelope):
+        message = envelope.original_content
         r = await self._session.post(config['RELAY'].get('rspamd', 'http://localhost:11333/checkv2'),
                                      data=message, headers=dict(config.items('HEADERS')))
         j = await r.json()
 
         if 'dkim-signature' not in j:
-            message = email.message_from_string(
-                message, policy=email.policy.SMTP)
+            msg = email.message_from_string(
+                message, policy=email.policy.SMTPUTF8)
             logging.warning('rspamd did not return a signature for message {}'.format(
-                message.get('Message-ID', '(Message-ID not found)')))
+                msg.get('Message-ID', '(Message-ID not found)')))
         else:
             headers = list()
             if isinstance(j['dkim-signature'], str):
-                headers.append('DKIM-Signature: ')
-                headers.append(j['dkim-signature'])
-                headers.append('\n')
+                headers.append(b'DKIM-Signature: ')
+                headers.append(j['dkim-signature'].encode('ascii'))
+                headers.append(b'\r\n')
             else:
                 for sig in j['dkim-signature']:
-                    headers.append('DKIM-Signature: ')
-                    headers.append(sig)
-                    headers.append('\n')
+                    headers.append(b'DKIM-Signature: ')
+                    headers.append(sig.encode('ascii'))
+                    headers.append(b'\r\n')
             headers.append(message)
-            message = email.message_from_string(
-                "".join(headers), policy=email.policy.SMTP)
         async with aiosmtplib.SMTP(hostname=config['RELAY'].get('forward', 'localhost'),
                                    port=config['RELAY'].get('fport', 2525)) as s:
-            await s.send_message(message)
+            await s.sendmail(envelope.mail_from, envelope.rcpt_tos, b''.join(headers),
+                             mail_options=envelope.mail_options, rcpt_options=envelope.rcpt_options)
+
+        return '250 Message Get'
 
     async def handle_exception(self, err):
         logging.error("Unable to relay message: {}".format(err))
+        logging.debug("traceback: {}".format(traceback.format_exc()))
         return "554 Unable to relay mail"
 
 

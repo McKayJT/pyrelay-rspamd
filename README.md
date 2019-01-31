@@ -31,3 +31,15 @@ pyrelay-rspamd when starting it.
 Everything in the HEADERS section of the configuration file
 is passed as an header to rspamd if you want to customize
 the processing further. 
+
+### A note on encoding
+
+The relay does not attempt to modify any encoding of the messages. This means
+that the forwarding server must support the message as encoded by the originating
+server. It also means that if the mail is then sent to a server that doesn't
+support the encoding used the signature may become invalidated.
+
+aiosmtplib doesn't support SMTPUTF8. For a quick and dirty hack for the
+support most people will need see
+[my branch](https://github.com/McKayJT/aiosmtplib/tree/smtputf8)
+of the project.
