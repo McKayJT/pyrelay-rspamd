@@ -25,13 +25,13 @@ class Handler:
                                      data=message, headers=dict(config.items('HEADERS')))
         j = await r.json()
 
+        headers = list()
         if 'dkim-signature' not in j:
-            msg = email.message_from_string(
+            msg = email.message_from_bytes(
                 message, policy=email.policy.SMTPUTF8)
             logging.warning('rspamd did not return a signature for message {}'.format(
                 msg.get('Message-ID', '(Message-ID not found)')))
         else:
-            headers = list()
             if isinstance(j['dkim-signature'], str):
                 headers.append(b'DKIM-Signature: ')
                 headers.append(j['dkim-signature'].encode('ascii'))
@@ -41,7 +41,7 @@ class Handler:
                     headers.append(b'DKIM-Signature: ')
                     headers.append(sig.encode('ascii'))
                     headers.append(b'\r\n')
-            headers.append(message)
+        headers.append(message)
         async with aiosmtplib.SMTP(hostname=config['RELAY'].get('forward', 'localhost'),
                                    port=config['RELAY'].get('fport', 2525)) as s:
             await s.sendmail(envelope.mail_from, envelope.rcpt_tos, b''.join(headers),
