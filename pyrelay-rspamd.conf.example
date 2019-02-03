@@ -2,12 +2,15 @@
 # where to listen for incoming mail
 #listen=localhost
 #port=8383
+#
 # where to pass mail to once filtered
 #forward=localhost
 #fport=2525
-# optional header to specify which configuration to use
-#where rspamd is listening for requests
+# 
+# where rspamd is listening for requests
 #rspamd=http://localhost:11333/checkv2
+# (optional) unix domain socket for rspamd (use 'http://localhost/checkv2' above)
+#unix=/run/rspamd/worker.sock
 
 # sets headers for the HTTP requests to rspamd
 [HEADERS]

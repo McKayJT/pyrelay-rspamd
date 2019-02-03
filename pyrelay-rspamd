@@ -2,6 +2,7 @@
 from aiosmtpd.smtp import SMTP
 import aiosmtplib
 import aiohttp
+from aiohttp import UnixConnector
 import asyncio
 import configparser
 import email
@@ -62,7 +63,11 @@ def stop(server):
 
 async def start(host, port):
     loop = asyncio.get_running_loop()
-    session = aiohttp.ClientSession()
+    if 'unix' in config['RELAY']:
+        conn = UnixConnector(path=config['RELAY']['unix'])
+        session = aiohttp.ClientSession(connector=conn)
+    else:
+        session = aiohttp.ClientSession()
     handler = Handler(session)
     factory = functools.partial(SMTP, handler, enable_SMTPUTF8=True)
     server = await loop.create_server(factory, host=host, port=port)
@@ -79,7 +84,7 @@ global config
 if len(sys.argv) < 2:
     print("No configuration file specified", file=os.stderr)
     sys.exit(2)
-config = configparser.ConfigParser()
+config = configparser.ConfigParser(interpolation=None)
 try:
     config.read_file(open(sys.argv[1]))
 except configparser.Error as err:
